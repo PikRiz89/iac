@@ -1,0 +1,42 @@
+---
+- name: "add user ansible-user et ajouter une key SSH commune"
+  hosts: ec2_instances
+  become: true
+
+  vars:
+    user: ansible-user
+    public_key_file: "/home/theo/AWS/ansible_user_keys/ansible-user-id_rsa.pub"
+
+  tasks:
+    - name: "add user '{{ user }}' avec  sudo"
+      ansible.builtin.user:
+        name: "{{ user }}"
+        groups: wheel
+        append: yes
+        state: present
+        shell: /bin/bash
+
+    - name: " '{{ user }}'  utiliser sudo sans mot de passe"
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/90-ansible-user
+        state: present
+        create: yes
+        mode: '0440'
+        line: "{{ user }} ALL=(ALL) NOPASSWD: ALL"
+        validate: 'visudo -cf %s'
+
+    - name: "add dossier .ssh avec  bonnes permissions"
+      ansible.builtin.file:
+        path: "/home/{{ user }}/.ssh"
+        state: directory
+        mode: '0700'
+        owner: "{{ user }}"
+        group: "{{ user }}"
+
+    - name: "add key publique SSH commune pour user '{{ user }}'"
+      ansible.builtin.copy:
+        src: "{{ public_key_file }}"
+        dest: "/home/{{ user }}/.ssh/authorized_keys"
+        owner: "{{ user }}"
+        group: "{{ user }}"
+        mode: '0600'
